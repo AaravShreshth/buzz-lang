@@ -90,9 +90,9 @@ This will output the main executables into /dist.
 
 ## ✍️ Authors
 
-- [Aarav Shreshth](https://www.github.com/yourprofile) - Creator and main contributor 
+- [Aarav Shreshth](https://www.github.com/AaravShreshth) - Creator and main contributor 
 
-See also the list of [contributors](https://github.com/yourname/buzz/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/AaravShreshth/buzz-lang/contributors) who participated in this project.
 
 ## 📝 License
 
