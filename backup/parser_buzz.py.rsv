@@ -1,0 +1,457 @@
+import os
+import inspect
+
+from manifest import *
+from manifest.astz   import *
+from manifest.tokens import *
+from grammer.errors import Error
+from grammer.types import convert_obj_to_tokens
+from buzz import *
+
+
+class ZParser(object):
+    def __init__(self, tokens_, filename):
+        self.hasmain = False
+        
+        if str(filename).endswith(".bzl"):
+            self.islib = True
+            
+        self.filename = filename
+        self.tokens_ = tokens_
+        self.ast = Ast()
+        self.index = 0
+        self.infun = False
+        
+        # Program Libraries
+        self.included_libraries = []
+
+        # # Initialize
+        # self.ast.set_root(DEFAULT_ROOT)
+        
+    def PreParse(self):
+        self.index = 0
+        
+        while self.index<len(self.tokens_):
+            tokentype = self.tokens_[self.index].type
+            tokenvalue = self.tokens_[self.index].value
+            
+            if tokentype == TokenType.KEYWORD and tokenvalue == 'assiml':
+                i, libname, lib_type = self.ParseInclLibs(self.tokens_[self.index:])
+                
+                self.included_libraries.append({libname:lib_type})
+                self.ast.add_node(self.ast.root, Node(libname, NodeType.INCLUDED_LIB, st_type=lib_type))
+            self.index+=1
+      
+    def Parse(self):
+        self.PreParse()
+        
+        self.index = 0
+        # print(self.tokens_)
+        while self.index<len(self.tokens_):
+            tokentype = self.tokens_[self.index].type
+            tokenvalue = self.tokens_[self.index].value
+                
+                        
+            if tokentype == TokenType.KEYWORD and tokenvalue == 'subr' or tokenvalue == 'universal' or tokenvalue == 'modular':
+                func, self.index = self.ParseFunctions(self.tokens_[self.index:len(self.tokens_)])
+                self.ast.add_node(self.ast.root, func)
+                # self.index+=1
+                
+            # print(tokentype, tokenvalue)
+                
+            if tokentype == TokenType.IDENTIFIER:
+                # print(self.infun)
+                # print(self.tokens_[self.index])
+                
+                if self.tokens_[self.index+1].type == TokenType.OPERATOR and self.tokens_[self.index+1].value == "(" and self.tokens_[self.index-1].value != "subr":
+                    
+                    fcll = self.ParseFunctionCall(self.tokens_[self.index:len(self.tokens_)])
+                    self.ast.add_node(self.ast.root, fcll)
+                    self.index+=1
+                    
+            elif tokentype == TokenType.ENDPROGRAM or tokenvalue == 'assiml':
+                pass
+            
+            
+                
+            self.index+=1
+            
+        print(self.ast)
+        return self.ast, self.included_libraries
+    
+    def ParseLiteral(self, tokens_) -> Node:
+        tokens = tokens_
+        
+        for tok in tokens_:
+            # print(tok.type)
+            if tok.type in [TokenType.STRING, TokenType.INTEGER, TokenType.FLOAT, TokenType.IDENTIFIER]:
+                return Node('Literal', NodeType.LITERAL, tok.value, T_type_conversion(tok.type))
+ 
+    def ParseFunctions(self, tok):
+        i = 0
+        funcname = None
+        funcargs = []
+        funcretype = None
+        funcbody = []
+        func_file_scope_type = 'modular'
+        
+        self.infun = True
+        type_ = tok[i].type
+        value = tok[i].value
+        
+        if type_ == TokenType.KEYWORD and value == "subr":
+            i+=1
+            type_ = tok[i].type
+            value = tok[i].value
+        else:
+            type_ = tok[i].type
+            value = tok[i].value
+            
+            if value == "universal":
+                func_file_scope_type = 'universal'
+                i+=1
+            
+            if value == "modular":
+                func_file_scope_type = 'modular'
+                i+=1
+
+        if type_ == TokenType.KEYWORD and value == "subr":
+            i+=1
+            type_ = tok[i].type
+            value = tok[i].value
+            
+        type_ = tok[i].type
+        value = tok[i].value
+            
+        
+        if type_ == TokenType.IDENTIFIER:
+            funcname = value
+            i+=1
+
+        type_ = tok[i].type
+        value = tok[i].value
+        print(type_,value)
+        if type_ ==TokenType.OPERATOR and value == '(':
+            pass
+        
+        else: Error(self.filename, 'error', f"expected '(' to declare parameters.", 1, True)
+
+        i+=1
+        
+        type_ = tok[i].type
+        value = tok[i].value
+        
+        in_arg = True
+        while in_arg:
+            type_ = tok[i].type
+            value = tok[i].value
+            funcargs.append(Token(type_, value))
+            # if tok[i].type == TokenType.OPERATOR and tok[i].value == '~': 
+            #     funcargs.append({Token(tok[i-1].type, tok[i-1].value): Token(tok[i+1].type, tok[i+1].value)})
+            if tok[i].type == TokenType.OPERATOR and tok[i].value == ')': in_arg = False
+            
+            i+=1
+
+        if len(funcargs) != 0:
+            if funcargs[-1].type == TokenType.OPERATOR and funcargs[-1].value == ')':
+                funcargs.pop(-1)
+                
+        
+        _Sd = 0
+        
+        
+        real_arg = {}
+        final_args = []
+        
+        _name = None
+        _type = None
+        
+        while _Sd < len(funcargs):
+            
+            toki = funcargs[_Sd]
+            if toki.type == TokenType.IDENTIFIER:
+                _name = toki.value
+                
+                if funcargs[_Sd+1].type == TokenType.OPERATOR and funcargs[_Sd+1].value == "~":
+                    if funcargs[_Sd+2].type == TokenType.TYPE:
+                        _type = funcargs[_Sd+2].value
+                        
+                        real_arg[_name] = _type
+                        
+                        _Sd+=3
+                        
+            
+            _tmp = ArgumentNode(_name, _type)
+            final_args.append(_tmp)   
+                        
+                        
+          
+                                
+            
+            _Sd+=1
+            
+            
+        type_ = tok[i].type
+        value = tok[i].value
+        
+        if type_ == TokenType.ADDRESS:
+            i+=1
+                        
+            type_ = tok[i].type
+            value = tok[i].value
+            # print(type_)
+            if value in [Type.INT.value, Type.FLT.value, Type.STR.value, Type.VOID.value]:
+                # print('2')
+                funcretype = value
+                
+            i+=1
+            
+        else: Error(self.filename, 'error', f"expected '@' to define function type.", 1, True)
+            
+        type_ = tok[i].type
+        value = tok[i].value
+        
+        
+        if type_==TokenType.OPERATOR and value == "{":
+            i+=1
+            in_body = True
+            # print(type_, value, "hello")
+            
+            type_ = tok[i].type
+            value = tok[i].value
+            
+            while in_body:
+                type_ = tok[i].type
+                value = tok[i].value
+
+                funcbody.append(Token(type_, value))
+                
+                if type_ == TokenType.OPERATOR and value == '}': in_body = False;break
+                
+                i+=1
+                
+        else: Error(self.filename, 'error', "expected '{' to start subroutine body.", 1, True)
+                
+        
+        if len(funcbody) != 0:
+            if funcbody[-1].type == TokenType.OPERATOR and funcbody[-1].value == '}':
+                funcbody.pop(-1)
+                
+        # print(funcbody)
+        function_body_ast = self.ParseFunctionBody(funcbody, funcretype)
+        
+        if funcname == 'main':
+            self.ast.root.name = "__main_start"
+
+        function_node = FunctionNode(funcname, NodeType.FUNCTION, final_args, func_file_scope_type, funcretype, function_body_ast)
+        return function_node, i
+    
+    def ParseFunctionCall(self, token_stream):
+        i = 0
+        method_name = None
+        total_args = 0
+        arguments = []
+
+
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+        
+        if type_ == TokenType.IDENTIFIER: method_name = value
+        else:Error(self.filename, 'error', f"compiler error (core)", 1, True)
+        
+        i+=1
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        if type_ ==TokenType.OPERATOR and value == '(':
+            pass
+        else:Error(self.filename, 'error', f"compiler error (core)", 1, True)
+
+        i+=1
+        
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+        
+        in_arg = True
+        
+        while in_arg:
+            type_ = token_stream[i].type
+            value = token_stream[i].value
+            arguments.append(Token(type_, value))
+            
+            # print(type_, value)
+            if type_ == TokenType.ENDLINE or value == ';':
+                if token_stream[i-1].type == TokenType.OPERATOR and token_stream[i-1].value == ')': in_arg = False; break
+                
+            # else:
+            #     Error(self.filename, 'error', "expected ';' (endline operator) to end the function call.", 1)
+
+
+            
+            # elif arguments[-2].type == TokenType.OPERATOR and arguments[-2].value == ')': arguments.pop(-2)
+            i+=1
+            
+        if arguments[-1].type == TokenType.ENDLINE and arguments[-1].value == ';': arguments.pop(-1)
+        if arguments[-1].type == TokenType.OPERATOR and arguments[-1].value == ')': arguments.pop(-1)
+        # print(arguments)
+
+        a = 0
+        while a<len(arguments):
+            vl = arguments[a].value
+            if vl == ',':
+                arguments.pop(a)
+            a+=1
+            
+
+        if len(arguments)==1:
+            # if arguments[0].type == TokenType.IDENTIFIER:
+            #     arguments
+            arguments = self.ParseLiteral(arguments)
+            
+        elif len(arguments)>1:
+            # print(self.pyvars)
+            
+            arguments = self.ParseExpression(arguments)
+            
+        else: arguments = []
+
+        fcall = Node(method_name, NodeType.FUNCTION_CALL, "None", "None", [arguments])
+
+        return fcall
+
+    def ParseFunctionBody(self, funcbody, retype):
+        self.infun = True
+        function_body_ast = Ast()
+        function_body_ast.set_root("__func_body_start", "funcbody")
+        rt = function_body_ast.root
+        
+        i = 0
+        while i < len(funcbody):
+            # print('2323')
+            statement = funcbody[i]
+            # print(statement)
+            # if statement.type == TokenType.KEYWORD and statement.value == 'alloc':
+            #     vr = self.ParseVariableDecl(funcbody[i:], False)
+            #     function_body_ast.add_node(rt, vr)
+                
+            # elif statement.type == TokenType.KEYWORD and statement.value == 'subr':
+            #     f_ = self.ParseFunctions(funcbody[i:])
+            #     function_body_ast.add_node(rt, f_)
+                
+                
+            
+            if statement.type == TokenType.IDENTIFIER:
+                if funcbody[i+1].value == "(" and funcbody[i-1].value != "subr":
+                    cl = self.ParseFunctionCall(funcbody[i:])
+                    function_body_ast.add_node(rt, cl)
+                    
+            
+            
+            elif statement.type == TokenType.ASM_CALL:
+                asc_ = self.ParseAsmCalls(funcbody[i:])
+                function_body_ast.add_node(rt, asc_)
+                
+            elif statement.type == TokenType.KEYWORD and statement.value == 'return':
+                i += 1
+                b = i
+                type_ = funcbody[b].type
+                value = funcbody[b].value
+                ret_val = []
+
+                in_semi = True
+                while in_semi and not (type_ == TokenType.ENDLINE or value == ';'):
+                    # print(type_, value)
+                    ret_val.append(Token(type_, value))
+                    b += 1
+
+                    # Update type_ and value for the next iteration
+                    if b < len(funcbody):
+                        type_ = funcbody[b].type
+                        value = funcbody[b].value
+                    else:
+                        break  # Break the loop if we've reached the end of funcbody
+                
+                if len(ret_val) ==1:
+                    lit = self.ParseLiteral(ret_val)
+
+                else:
+                    lit = self.ParseLiteral([self.ParseExpression(ret_val)])
+                    
+
+                ret_node = Node('return', NodeType.RETURN, lit, retype)
+                function_body_ast.add_node(function_body_ast.root, ret_node)
+
+
+            else:
+                # Handle other types of statements as needed
+                pass
+
+            i += 1
+            
+        self.infun = False
+
+        # print(function_body_ast.root)
+        return function_body_ast.root
+    
+    def ParseAsmCalls(self, tokens_):
+        i = 1
+        instruction = None
+        argument = None
+        
+        stmt = tokens_[i]
+        
+        if stmt.type == TokenType.IDENTIFIER:
+            instruction = [stmt]
+            i+=1
+            
+        stmt = tokens_[i]
+            
+        if stmt.type == TokenType.IDENTIFIER:
+            argument = [stmt]
+            i+=1
+            
+        instruction = self.ParseLiteral(instruction)
+        argument = self.ParseLiteral(argument)
+        nd = AssemblyCallNode(instruction, NodeType.ASSEMBLY_CALL, argument)
+        return nd
+        
+        
+    def ParseInclLibs(self, tokens_):
+        i = 0
+        aspx = 0
+        inc_lib_type = None
+        inc_lib_name = None
+        inc_lib_data = ""
+        tok = tokens_[i]
+        
+        if tok.type == TokenType.KEYWORD:
+            tokens_.pop(i)
+            
+        tok = tokens_[i]
+        
+        if tok.type == TokenType.ADDRESS:
+            inc_lib_type = LibType.INBUILT
+            # tokens_.pop(i)
+            # i+=1
+            
+        else:
+            inc_lib_type = LibType.USERDEFINED
+            inc_lib_name = tok.value
+        
+                
+        i+=1
+        aspx+=1
+        
+        tok = tokens_[i]
+        # print(tokens_, "\n", "\n")
+
+        if tok.type == TokenType.STRING and inc_lib_name is None:
+            inc_lib_name =tok.value
+            
+        i+=1
+        aspx+=1
+        tok = tokens_[i]
+        if tok.type == TokenType.ENDLINE:
+            if inc_lib_type == LibType.INBUILT:
+
+                return i, inc_lib_name, inc_lib_type

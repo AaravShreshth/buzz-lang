@@ -1,0 +1,28 @@
+-- Pending tasks todo list --
+
+-- Mark identifiers. --
+
+X : Completed task
+/ : Development stage
+- : Bugs and errors 
+
+
+: Compiler (basic)
+
+1. [X] - Create a RAW Tokenizer to take out string tokens from
+         a context (file) and provide a token list.
+
+2. [X] - Create a Lexer for the lexical anylization of the token
+         list, and provide a tokenized version of the RAW str toks.
+
+3. [/] - Parse those tokens and check for syntax errors, and finally,
+         create a logical representation of the code called the 
+         Abstract syntax tree.
+
+4. [ ] - Create a assembly code generator that generates assembly code
+         from the logical representation of the code (AST) and check 
+         for logical errors in the code.
+
+5. [ ] - Make a optimizer to provide the maximum compiling speed.
+
+

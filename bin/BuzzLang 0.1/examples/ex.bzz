@@ -1,0 +1,6 @@
+assiml @"stdiof.bzl";
+
+subr main() @ int {
+	write("Hello, World!");
+	return 0;
+}

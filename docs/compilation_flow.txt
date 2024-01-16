@@ -1,0 +1,13 @@
+-- reperesentation names --
+(main.bzz = src.bzz)
+
+
+### Compilation Flow ###
+
+-- File Description --
+main.bzz -> main.bbr -> main.o -> main.asm -> main.out
+
+
+-- Detail Description --
+Source code -> broadened reperesentation -> object file (binary reperesentation) \
+    -> Executable (x86)

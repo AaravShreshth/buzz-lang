@@ -1,0 +1,2 @@
+write("Hello world");
+/* IDENTIFIER -> write, OP -> (, STRING -> Hello world, OP -> ), OP -> ;*/

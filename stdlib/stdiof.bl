@@ -1,0 +1,4 @@
+universal subr write(StrOrBytes__~string) @ void {
+    
+    :: inb_write___ StrOrBytes__ ;
+}

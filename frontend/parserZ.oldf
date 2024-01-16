@@ -1,0 +1,123 @@
+from manifest import *
+from manifest.astz   import *
+from manifest.tokens import *
+
+class ZParser(object):
+    def __init__(self):
+        self.init = True
+      
+    def Parse(self, data_):
+        self.index = 0
+        self.tokens_ = data_
+        self.collect = False
+        self.parent = {}
+        self.ast = Ast()
+        # print(self.tokens_)
+        while self.index<len(self.tokens_):
+            token_type = self.tokens_[self.index].type
+            token_value = self.tokens_[self.index].value
+
+            
+
+            if token_type == TokenType.IDENTIFIER:
+                if self.tokens_[self.index+1].type == TokenType.OPERATOR and self.tokens_[self.index+1].value == "(":
+                    self.ParseFunctionCall(self.tokens_[self.index:len(self.tokens_)])
+
+            elif token_type in [TokenType.STRING, TokenType.INTEGER, TokenType.FLOAT]:
+                self.ast.AddTreeNode(LiteralNode(Type.STR, token_value))
+
+            elif token_type == TokenType.KEYWORD and token_value == 'alloc':
+                self.ParseVariableDecl(self.tokens_[self.index:len(self.tokens_)])
+
+            self.index+=1
+        return self.ast.tree
+    
+
+    def ParseVariableDecl(self, token_stream):
+        i = 1
+        varname = None
+        vartype = None
+        varvalue = []
+
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        if type_ == TokenType.IDENTIFIER: 
+            varname = value 
+            i+=1
+
+        else:
+            print("E: Expected variable name for variable declaration.")
+            exit(1)
+
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        if type_ != TokenType.OPERATOR or type_ == TokenType.OPERATOR and value != '=':
+            print(f"E: Expected '=' op for value assignment, got {value}")
+            exit(1)
+
+        i+=1
+
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        while value != ';':
+            type_ = token_stream[i].type
+            value = token_stream[i].value 
+
+            varvalue.append(Token(type_, value))
+
+            if varvalue[-1].value == ';':
+                varvalue.pop(-1)
+              
+            i+=1
+            
+        if len(varvalue) == 1:
+            vartype = varvalue[0].type
+
+        nd = VariableDecNode(varname, vartype, varvalue)
+        self.ast.AddTreeNode(nd) 
+        
+    def ParseFunctionCall(self, token_stream):
+        i = 0
+        method_name = None
+        total_args = 0
+        arguments = []
+
+
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        if type_ == TokenType.IDENTIFIER: method_name = value 
+        
+        i+=1
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        if type_ ==TokenType.OPERATOR and value == '(':
+            pass
+
+        i+=1
+        
+        type_ = token_stream[i].type
+        value = token_stream[i].value
+
+        while value != ')':
+            type_ = token_stream[i].type
+            value = token_stream[i].value
+            arguments.append(Token(type_, value))
+
+            if arguments[-1].type == TokenType.OPERATOR and arguments[-1].value == ')': arguments.pop(-1)
+            i+=1
+        a = 0
+        while a<len(arguments):
+            vl = arguments[a].value
+            if vl == ',':
+                arguments.pop(a)
+            a+=1
+
+        # arguments = self.Parse(arguments)
+
+        fcall = FunctionCallNode(method_name, NodeType.FUNCTION_CALL, arguments)
+        self.ast.AddTreeNode(fcall)

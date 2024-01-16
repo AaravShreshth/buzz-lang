@@ -1,0 +1,95 @@
+import buzz
+
+from manifest.tokens import *
+from frontend.lexer import Lexer
+from frontend.parser_buzz import *
+from grammer.errors import Error
+
+class Preprocesser(object):
+    def __init__(self, srcfile, codeOfsrc):
+        self.included_sources = []
+        self.libs = []
+        self.filename = srcfile
+        self.srcfile_code = codeOfsrc
+        
+    def preprocess(self):
+        for lib in self.libs:
+            print(lib)
+            for key in lib:
+                libname = key
+                libtype = lib[libname]
+                
+
+                if libtype == LibType.INBUILT:
+                    try:
+                        with open(f"stdlib/{libname}", 'r') as f:
+                            data_ = f.read()
+                            lng_ = buzz.Buzz()
+                            lng_.filename = libname
+                            lng_.to_executable = False
+                            lng_.Compile(data_)
+                            
+                    except FileNotFoundError:
+                        Error(self.filename, 'error', f"could not find standard library `{libname}`.", 1, True)
+                        
+    def remove_comments(self, code):            
+        code = re.sub(re.compile("/\*.*?\*/", re.DOTALL ) ,"" ,code) # remove all occurance streamed comments (/*COMMENT */)  
+        code = re.sub(re.compile("//.*?\n" ) ,"" ,code) # remove all occurance singleline comments (//COMMENT\n )
+        
+        return code
+    
+    def compact(self, code):
+        code = re.sub(r'\n+', '\n', code) # Replace multiple newlines with single newline
+        code = re.sub(r'\s+', ' ', code) # Replace multiple spaces with single space
+        return code.strip() # Trim leading/trailing whitespace
+
+        compact_code = compact(preprocessed_code)
+                        
+    def preprocess_file(self):
+        
+        code = str(self.srcfile_code).splitlines()
+        index = 0
+        line_num = 0
+        
+        while index<len(code):
+            line = code[index]
+            
+            print(line)
+            line_num +=1
+            if line.__contains__('assiml'):
+                include_regex = re.compile(r'^assiml @ <(.*)>;$')  
+                include_regex2 = re.compile(r'^assiml @ "(.*)";$')
+
+                if (m := include_regex.search(line)):
+                    try:
+                        path = f"stdlib/{m.group(1)}"
+                        with open(path) as f:
+                            data_ = f.read()
+                            d = Preprocesser(m.group(1), data_).preprocess_file()
+                            code.pop(index)
+                            code = code[:index] + [f"# module {m.group(1)} \"{os.path.abspath(path)}\" {line_num}"] + code[index:]
+                            code = code[:index+1]+[d]+code[index+1:]
+                            code = code[:index+2]+[f"# endmodule {m.group(1)} \"{os.path.abspath(path)}\" {line_num}"]+code[index+2:]
+                            
+                            index+=4
+
+                    except FileNotFoundError:
+                        Error(self.filename, 'error', f"could not find specified module (file) `{m.group(1)}`", 1, True)
+                
+                
+                                    
+                # elif (m := include_regex2.search(line)):  
+                #     print(f"Regex 2 matched: {m.group(1)}")
+                
+            
+                    
+            
+            
+                    
+            index+=1
+            
+            final_code = "\n".join(code)
+            
+            final_code = self.remove_comments(final_code)
+            return final_code.strip()
+        

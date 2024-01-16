@@ -1,0 +1,26 @@
+            
+
+            # if token_type == TokenType.IDENTIFIER:
+
+            #     if self.tokens_[self.index+1].type == TokenType.OPERATOR and self.tokens_[self.index+1].value == "(":
+            #         self.ParseFunctionCall(self.tokens_[self.index:len(self.tokens_)])
+
+            #     elif self.tokens_[self.index-1].type == TokenType.KEYWORD and self.tokens_[self.index-1].value == 'alloc':
+            #         pass
+                
+                
+                
+            #     elif token_value == i.name:
+            #         # print(self.tokens_[self.index:len(self.tokens_)])
+
+            #         if self.tokens_[self.index+1].type == TokenType.OPERATOR and self.tokens_[self.index+1].value == '=':
+            #         # print("called")
+            #             self.ParseVariableDecl(self.tokens_[self.index:len(self.tokens_)], True)
+            #     # else:
+            #     #     Error(self.filename, 'error', "identifier '{}' is not defined in the current scope block.".format(token_value), 1)
+
+
+
+            # elif token_type in [TokenType.STRING, TokenType.INTEGER, TokenType.FLOAT]:
+            #     self.ast.AddTreeNode(LiteralNode(Type.STR, token_value))
+

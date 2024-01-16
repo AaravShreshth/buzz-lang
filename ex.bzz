@@ -1,0 +1,11 @@
+assiml @ <stdiof.bl>;
+
+subr main() @ integer {
+    string name = "Aarav Shreshth";
+    string class = "8th-B";
+    // sayHi(name);
+
+    write(name);
+    write(class);
+    return 0;
+}
